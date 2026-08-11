@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>BioStonk Clinical Compute</title>
-    <link rel="stylesheet" href="/static/styles.css?v=20260810-4">
+    <link rel="stylesheet" href="/static/styles.css?v=20260811-2">
   </head>
   <body>
       <div class="dashboard-shell">
@@ -221,6 +221,11 @@
             </div>
             <article id="trial-document-editor" class="trial-document-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Protocol synopsis editor" spellcheck="true"></article>
           </section>
+          <div id="match-navigator" class="match-navigator hidden" role="group" aria-label="Phrase match navigation">
+            <span id="match-navigator-count" class="match-navigator-count" aria-live="polite">1 / 1</span>
+            <button id="match-previous" type="button" aria-label="Previous phrase match" title="Previous match">&#8593;</button>
+            <button id="match-next" type="button" aria-label="Next phrase match" title="Next match">&#8595;</button>
+          </div>
         </main>
 
         <aside class="prediction-panel" aria-label="Trial success prediction and explainability">
@@ -281,7 +286,7 @@
             <label>Planned enrollment<input id="planned-enrollment-b" type="number" min="1" value="120"></label>
           </div>
         </section>
-        <button id="submit-comparison" class="submit-button" type="submit">Open in text editor</button>
+        <button id="submit-comparison" class="submit-button" type="submit">Upload Trial</button>
       </form>
     </dialog>
     <script src="/static/app.js?v=20260810-11"></script>

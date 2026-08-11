@@ -1,5 +1,5 @@
 const ACTIVE_TRIAL_ID = "NCT02545127";
-const state = { previousDraft: null, activeJob: null, jobTimer: null, comparisonResults: [], computeReady: false, activeDocument: "protocol", trialLoaded: false, documentExtracting: false };
+const state = { previousDraft: null, activeJob: null, jobTimer: null, comparisonResults: [], computeReady: false, activeDocument: "protocol", trialLoaded: false, documentExtracting: false, activeMatch: null };
 const byId = (id) => document.getElementById(id);
 const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
 const plural = (value, singular, pluralForm) => { const count = Number(value) || 0; return `${count} ${count === 1 ? singular : pluralForm}`; };
@@ -165,15 +165,49 @@ function refreshEditorHighlights(signals) {
   restoreEditorCaret(caretOffset);
 }
 
-function jumpToSignal(signalId) {
+function signalMatches(signalId) {
+  return [...byId("trial-document-editor").querySelectorAll(`mark[data-signal-id="${signalId}"]`)];
+}
+
+function setPhraseContributionsPinned(pinned) {
+  document.querySelector(".contribution-section").classList.toggle("is-pinned", pinned);
+}
+
+function resetMatchNavigator() {
   const editor = byId("trial-document-editor");
-  const target = editor.querySelector(`mark[data-signal-id="${signalId}"]`);
-  if (!target) return;
+  editor.querySelectorAll("mark.is-jump-target").forEach((mark) => mark.classList.remove("is-jump-target"));
+  state.activeMatch = null;
+  byId("match-navigator").classList.add("hidden");
+}
+
+function updateMatchNavigator(matchCount, matchIndex) {
+  byId("match-navigator-count").textContent = `${matchIndex + 1} / ${matchCount}`;
+  byId("match-previous").disabled = matchIndex === 0;
+  byId("match-next").disabled = matchIndex === matchCount - 1;
+  byId("match-navigator").classList.toggle("hidden", matchCount < 2);
+}
+
+function jumpToSignal(signalId, matchIndex = 0) {
+  const matches = signalMatches(signalId);
+  if (!matches.length) {
+    resetMatchNavigator();
+    return;
+  }
+  const index = Math.max(0, Math.min(matchIndex, matches.length - 1));
+  const target = matches[index];
+  const editor = byId("trial-document-editor");
   editor.querySelectorAll("mark.is-jump-target").forEach((mark) => mark.classList.remove("is-jump-target"));
   target.classList.add("is-jump-target");
+  setPhraseContributionsPinned(true);
+  state.activeMatch = { signalId, index };
+  updateMatchNavigator(matches.length, index);
   target.scrollIntoView({ behavior: "smooth", block: "center" });
   target.focus({ preventScroll: true });
-  window.setTimeout(() => target.classList.remove("is-jump-target"), 1800);
+}
+
+function moveToSignalMatch(direction) {
+  if (!state.activeMatch) return;
+  jumpToSignal(state.activeMatch.signalId, state.activeMatch.index + direction);
 }
 
 function highlightedText(text, signals) {
@@ -259,6 +293,10 @@ async function loadTrialWorkspace() {
 
 function showWorkspace(workspace) {
   const showTrial = workspace === "trial";
+  if (!showTrial) {
+    resetMatchNavigator();
+    setPhraseContributionsPinned(false);
+  }
   byId("overview-view").classList.toggle("hidden", showTrial);
   byId("trial-workspace").classList.toggle("hidden", !showTrial);
   byId("overview-tab").classList.toggle("is-active", !showTrial);
@@ -280,6 +318,8 @@ function closeTrialWorkspace() {
 }
 
 function renderTrialDocument(documentId) {
+  resetMatchNavigator();
+  setPhraseContributionsPinned(false);
   state.activeDocument = documentId;
   const documentData = trialDocuments[documentId];
   byId("trial-document-editor").innerHTML = documentData.html;
@@ -338,6 +378,8 @@ function updatePrototypePrediction() {
   byId("trial-success-track").style.width = `${score}%`;
   byId("contribution-count").textContent = `${presentSignals.length} ${presentSignals.length === 1 ? "signal" : "signals"}`;
   byId("prediction-updated-at").textContent = "Just now";
+  resetMatchNavigator();
+  setPhraseContributionsPinned(false);
   refreshEditorHighlights(presentSignals);
   documentData.html = byId("trial-document-editor").innerHTML;
   byId("phrase-contributions").innerHTML = presentSignals.length
@@ -613,6 +655,8 @@ byId("phrase-contributions").addEventListener("click", (event) => {
   const button = event.target.closest(".jump-to-phrase");
   if (button) jumpToSignal(button.dataset.signalId);
 });
+byId("match-previous").addEventListener("click", () => moveToSignalMatch(-1));
+byId("match-next").addEventListener("click", () => moveToSignalMatch(1));
 byId("document-tabs").addEventListener("click", (event) => {
   const tab = event.target.closest(".document-tab");
   if (!tab || tab.dataset.document === state.activeDocument) return;
