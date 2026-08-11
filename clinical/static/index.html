@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BioStonk Clinical Compute</title>
+    <link rel="stylesheet" href="/static/styles.css?v=20260810-4">
+  </head>
+  <body>
+      <div class="dashboard-shell">
+      <header class="dashboard-header">
+        <a class="brand" href="#workspace" aria-label="BioStonk home">BIO<span>STONK</span></a>
+        <div class="header-context"><span class="environment-dot"></span>Pre-production compute pilot</div>
+        <div class="header-actions">
+          <div id="compute-mode" class="badge">Checking topology</div>
+          <div class="desktop-download">
+            <button class="download-trigger" type="button" aria-expanded="false" aria-controls="desktop-download-menu"><span class="download-icon" aria-hidden="true">&#8595;</span>Download app</button>
+            <div id="desktop-download-menu" class="download-menu">
+              <a href="https://firebasestorage.googleapis.com/v0/b/biostonk.firebasestorage.app/o/desktop%2FBioStonk-macOS.dmg?alt=media">
+                <span class="platform-mark" aria-hidden="true">Mac</span>
+                <span><strong>Download for Mac</strong><small>Apple silicon .dmg</small></span>
+              </a>
+              <a href="https://firebasestorage.googleapis.com/v0/b/biostonk.firebasestorage.app/o/desktop%2FBioStonk-Windows.zip?alt=media">
+                <span class="platform-mark" aria-hidden="true">Win</span>
+                <span><strong>Download for Windows</strong><small>64-bit portable .zip</small></span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <nav class="workspace-tabs" aria-label="Open workspaces">
+        <button id="overview-tab" class="workspace-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="overview-view">Pipeline overview</button>
+        <div id="trial-tab-group" class="workspace-tab-group hidden">
+          <button id="trial-tab" class="workspace-tab" type="button" role="tab" aria-selected="false" aria-controls="trial-workspace">Trial A <span>NCT02545127</span></button>
+          <button id="close-trial-tab" class="workspace-tab-close" type="button" aria-label="Close Trial A workspace">&times;</button>
+        </div>
+      </nav>
+
+      <div id="overview-view" class="dashboard-layout" role="tabpanel" aria-labelledby="overview-tab">
+        <main class="trial-canvas">
+          <div class="canvas-heading">
+            <div><p class="eyebrow">Clinical evidence workspace</p><h1>Protocol comparison workspace</h1></div>
+            <span class="mono">LOCAL / SESSION 01</span>
+          </div>
+
+          <section class="action-bar" aria-label="Workspace actions">
+            <button id="open-protocol" class="control-button primary-control" type="button"><span class="button-icon" aria-hidden="true">+</span>Upload new trial</button>
+            <button id="devices-button" class="control-button" type="button"><span id="device-count" class="control-value">0</span>Devices pooled</button>
+          </section>
+
+          <section id="compute-readiness-notice" class="notice"><strong>Checking topology.</strong> Loading worker and security posture…</section>
+
+          <section id="workspace" class="trial-grid" aria-label="Trial overview">
+            <article class="metric-card trial-card is-active">
+              <button id="open-trial-workspace" class="trial-card-hitbox" type="button" aria-label="Open Trial A document workspace"></button>
+              <div class="metric-heading"><span>Trial A</span><span class="live-indicator">Active</span></div>
+              <strong id="candidate-a-score" class="metric-value">Draft</strong>
+              <p id="candidate-a-caption">Open trial workspace</p>
+            </article>
+            <article class="metric-card trial-card">
+              <div class="metric-heading"><span>Trial B</span><span class="metric-index">02</span></div>
+              <strong id="candidate-b-score" class="metric-value subdued">Off</strong>
+              <p id="candidate-b-caption">Comparison not enabled</p>
+            </article>
+            <article class="metric-card">
+              <div class="metric-heading"><span>Design coverage</span><span class="metric-index">03</span></div>
+              <strong id="coverage-metric" class="metric-value">--</strong>
+              <p>Required fields supplied</p>
+            </article>
+            <article class="metric-card">
+              <div class="metric-heading"><span>Anchor trial</span><span class="metric-index">04</span></div>
+              <strong id="anchor-metric" class="metric-value compact">NCT02545127</strong>
+              <p>Trial2Vec reference</p>
+            </article>
+            <article class="metric-card">
+              <div class="metric-heading"><span>Enrollment</span><span class="metric-index">05</span></div>
+              <strong id="enrollment-metric" class="metric-value">80</strong>
+              <p>Planned participants</p>
+            </article>
+            <article class="metric-card">
+              <div class="metric-heading"><span>Sites</span><span class="metric-index">06</span></div>
+              <strong id="sites-metric" class="metric-value">4</strong>
+              <p>Planned locations</p>
+            </article>
+            <article class="metric-card">
+              <div class="metric-heading"><span>Phase</span><span class="metric-index">07</span></div>
+              <strong id="phase-metric" class="metric-value compact">PHASE2</strong>
+              <p>Current protocol stage</p>
+            </article>
+            <article class="metric-card">
+              <div class="metric-heading"><span>Comparison state</span><span class="metric-index">08</span></div>
+              <strong id="job-state-metric" class="metric-value compact">Ready</strong>
+              <p>Worker-driven stages</p>
+            </article>
+          </section>
+
+          <section id="jobs" class="current-trials">
+            <div class="section-heading"><div><p class="eyebrow">Comparison history</p><h2>Current trials</h2></div><span id="job-id" class="mono">No active comparison</span></div>
+            <ol id="lifecycle" class="lifecycle"><li>Queued</li><li>Running</li><li>Verifying</li><li>Aggregated</li><li>Completed</li></ol>
+            <div id="job-detail" class="job-detail">Upload a protocol candidate to queue a replicated comparison.</div>
+            <div id="job-list" class="job-list"></div>
+          </section>
+
+          <section id="devices" class="device-pool">
+            <div class="section-heading"><div><p class="eyebrow">Endpoint capacity</p><h2>Pooled devices</h2></div><span class="badge neutral">Allowlisted workers</span></div>
+            <div id="devices-grid" class="devices-grid"></div>
+          </section>
+        </main>
+
+        <aside class="explainability-panel" aria-label="Explainability">
+          <div class="explainability-header"><div><p class="eyebrow">Live analysis</p><h2>Explainability</h2></div><span id="analysis-state" class="status-dot">Ready</span></div>
+          <div id="coverage-output" class="coverage-output"><p>Edit the protocol to inspect draft coverage. Nothing is persisted by this demo.</p></div>
+          <div class="method-note"><strong>How Trial2Vec is used</strong><p>Select a known historical NCT as the embedding anchor. The job retrieves nearest Trial2Vec neighbors; protocol text supplies the contextual design fields.</p></div>
+          <details id="model-gallery" class="model-gallery">
+            <summary>
+              <span><small>Trial2Vec</small>Model Explainability Gallery</span>
+              <span class="summary-action">Explore</span>
+            </summary>
+            <div class="gallery-content">
+              <p class="gallery-intro">A detailed guide to what drives the current comparison, what can be inspected now, and which model diagnostics require validated outcome labels.</p>
+              <div class="explainability-boundary"><strong>Current boundary</strong><p>BioStonk currently measures embedding similarity and protocol coverage. The imported labels are sentiment annotations, not clinical success or failure outcomes.</p></div>
+
+              <details class="explain-method" open>
+                <summary><span>Current comparison signals</span><span class="method-status available">Available</span></summary>
+                <div><p><strong>Trial2Vec similarity.</strong> Cosine similarity measures how closely the selected anchor trial sits to stored trial embeddings. Higher similarity means closer representation, not a higher probability of clinical success.</p><p><strong>Protocol coverage.</strong> The live analysis reports which required design and operational fields are supplied. Coverage affects explainability completeness, not the Trial2Vec embedding.</p><p><strong>Replica verification.</strong> Two allowlisted worker processes independently execute each comparison. In strict LAN mode they must report distinct hostnames. BioStonk aggregates only when canonical output checksums agree.</p></div>
+              </details>
+
+              <details class="explain-method">
+                <summary><span>Word Association</span><span class="method-status interactive">Interactive</span></summary>
+                <div>
+                  <p>Enter one word to inspect whether it appears in the uploaded protocol and available comparable-trial metadata. This does not infer success or failure.</p>
+                  <label for="association-word">Single word</label>
+                  <div class="word-association-controls">
+                    <input id="association-word" list="clinical-terms" autocomplete="off" placeholder="e.g. cancer">
+                    <button id="analyze-word" type="button">Analyze</button>
+                  </div>
+                  <datalist id="clinical-terms">
+                    <option value="anxiety"><option value="arterial"><option value="blood"><option value="bone"><option value="brain"><option value="breast"><option value="cancer"><option value="cancers"><option value="cardiac"><option value="cardiovascular"><option value="cholesterol"><option value="depression"><option value="diabetes"><option value="diabetic"><option value="electrocardiogram"><option value="eye"><option value="gastrointestinal"><option value="heart"><option value="immune"><option value="infection"><option value="infections"><option value="infectious"><option value="joint"><option value="kidney"><option value="lipid"><option value="liver"><option value="lung"><option value="mental"><option value="metabolic"><option value="muscle"><option value="muscles"><option value="neurological"><option value="obesity"><option value="pain"><option value="pediatric"><option value="pregnancy"><option value="prostate"><option value="pulmonary"><option value="renal"><option value="respiratory"><option value="sleep"><option value="stroke"><option value="therapy"><option value="tumor"><option value="tumors">
+                  </datalist>
+                  <div id="word-association-output" class="association-output" role="status">Type a word to inspect the current local evidence.</div>
+                </div>
+              </details>
+
+              <details class="explain-method">
+                <summary><span>Feature Importances</span><span class="method-status pending">Requires model</span></summary>
+                <div><p>A ranked list of the inputs a trained model uses most overall. A higher feature can influence decisions more strongly, but importance alone does not show direction or causality.</p><p class="artifact-note">Not generated: the current comparison is cosine retrieval, not a fitted outcome model.</p></div>
+              </details>
+
+              <details class="explain-method">
+                <summary><span>Permutation Importance</span><span class="method-status pending">Requires model</span></summary>
+                <div><p>Randomly scrambles one feature at a time and measures the drop in held-out performance. A larger drop suggests the fitted model relies more heavily on that signal.</p><p class="artifact-note">Requires a frozen model, held-out evaluation cohort, target definition, and baseline metric.</p></div>
+              </details>
+
+              <details class="explain-method">
+                <summary><span>fANOVA Importances</span><span class="method-status pending">Requires model</span></summary>
+                <div><p>Estimates how much outcome variance is attributable to individual factors and interactions across a defined parameter space.</p><p class="artifact-note">Requires a fitted model and documented feature ranges; it is not applicable to the current nearest-neighbor ranking alone.</p></div>
+              </details>
+
+              <details class="explain-method">
+                <summary><span>SHAP Summary</span><span class="method-status pending">Requires model</span></summary>
+                <div><p>A cohort-level view of how features push fitted model outputs up or down. Each point represents one evaluated record and the spread shows variation in influence.</p><p class="artifact-note">Requires a versioned predictive model and representative background dataset.</p></div>
+              </details>
+
+              <details class="explain-method">
+                <summary><span>SHAP Waterfall</span><span class="method-status pending">Requires model</span></summary>
+                <div><p>Explains one fitted-model output step by step, showing how each feature moves the output away from its baseline value.</p><p class="artifact-note">No waterfall is shown for similarity retrieval because there is no outcome-model baseline or prediction to decompose.</p></div>
+              </details>
+
+              <details class="explain-method">
+                <summary><span>Probe Coefficients</span><span class="method-status pending">Requires labels</span></summary>
+                <div><p>A diagnostic probe can test which directions inside an embedding representation align with a carefully defined label. Coefficients describe association in the probe, not causal clinical drivers.</p><p class="artifact-note">The current sentiment labels cannot be relabeled as clinical success or failure.</p></div>
+              </details>
+
+              <details class="explain-method">
+                <summary><span>ROC Curve</span><span class="method-status pending">Requires outcomes</span></summary>
+                <div><p>Plots sensitivity against false-positive rate across decision thresholds. Curves nearer the top-left indicate stronger separation on a held-out labeled cohort.</p><p class="artifact-note">Requires explicit binary clinical outcomes and an untouched evaluation set.</p></div>
+              </details>
+
+              <details class="explain-method">
+                <summary><span>Precision-Recall Curve</span><span class="method-status pending">Requires outcomes</span></summary>
+                <div><p>Shows the tradeoff between positive predictive value and sensitivity. It is especially informative when the positive outcome is rare.</p><p class="artifact-note">Requires approved outcome labels and a declared positive class; sentiment annotations are insufficient.</p></div>
+              </details>
+
+              <p class="gallery-source">Artifact status: no versioned explainability images are currently present. Future charts must identify their model version, dataset hash, target definition, and evaluation cohort.</p>
+              <button id="close-gallery" class="close-gallery" type="button">Close gallery</button>
+            </div>
+          </details>
+          <section id="results" class="results hidden">
+            <div class="section-heading"><div><p class="eyebrow">Comparison results</p><h2>Similarity and comparables</h2></div><span class="badge">Measured locally</span></div>
+            <div id="verification-output" class="verification-output hidden"></div>
+            <div id="result-candidates" class="candidate-results"></div>
+          </section>
+        </aside>
+      </div>
+
+      <section id="trial-workspace" class="trial-workspace hidden" role="tabpanel" aria-labelledby="trial-tab">
+        <main class="document-workbench">
+          <header class="trial-workspace-header">
+            <div>
+              <p class="eyebrow">Trial document workspace</p>
+              <h1 id="trial-workspace-title">Loading trial documents</h1>
+              <p class="trial-identity"><span id="trial-workspace-nct">NCT02545127</span><span id="trial-workspace-status">Loading</span><span>Working draft</span></p>
+            </div>
+            <div class="prototype-status"><span class="status-indicator"></span><span id="trial-save-status" class="status-copy">Loading trial data</span></div>
+          </header>
+
+          <nav id="document-tabs" class="document-tabs" aria-label="Trial documents" role="tablist">
+            <button class="document-tab is-active" type="button" role="tab" aria-selected="true">Loading documents <span>Source metadata</span></button>
+          </nav>
+
+          <section class="document-editor-frame" aria-label="Trial document editor">
+            <div class="editor-toolbar" aria-label="Editing tools">
+              <div class="formatting-tools">
+                <button type="button" data-command="bold" aria-label="Bold selected text" title="Bold"><strong>B</strong></button>
+                <button type="button" data-command="italic" aria-label="Italicize selected text" title="Italic"><em>I</em></button>
+                <span class="toolbar-divider"></span>
+                <button type="button" data-command="insertUnorderedList" aria-label="Create bulleted list" title="Bulleted list">&#8226;</button>
+              </div>
+              <div class="editor-meta"><span id="editor-word-count">0 words</span><span id="editor-save-state">Loading</span></div>
+            </div>
+            <article id="trial-document-editor" class="trial-document-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Protocol synopsis editor" spellcheck="true"></article>
+          </section>
+        </main>
+
+        <aside class="prediction-panel" aria-label="Trial success prediction and explainability">
+          <header class="prediction-header">
+            <div><p class="eyebrow">Illustrative prediction</p><h2>Trial success estimate</h2></div>
+            <span class="prototype-badge">UI prototype</span>
+          </header>
+          <div class="prediction-score-block">
+            <div class="prediction-score"><strong id="trial-success-score">68%</strong><span id="trial-success-band">Moderate</span></div>
+            <div class="score-track" aria-hidden="true"><span id="trial-success-track"></span></div>
+            <p>This estimate is simulated for interface testing and is not a validated clinical prediction.</p>
+          </div>
+
+          <section class="contribution-section">
+            <div class="panel-section-heading"><h3>Phrase contributions</h3><span id="contribution-count">5 signals</span></div>
+            <p class="section-intro">Phrases currently carrying the most weight. Select Go to phrase to locate one in the document.</p>
+            <div id="phrase-contributions" class="phrase-contributions"></div>
+          </section>
+
+          <section class="prediction-details">
+            <h3>Prediction details</h3>
+            <dl>
+              <dt>Document</dt><dd id="prediction-document-name">Protocol synopsis</dd>
+              <dt>Model</dt><dd>Outcome model placeholder</dd>
+              <dt>Last analyzed</dt><dd id="prediction-updated-at">Just now</dd>
+              <dt>Confidence</dt><dd>Not calibrated</dd>
+              <dt>Evidence source</dt><dd><a id="trial-source-link" href="#" target="_blank" rel="noreferrer">ClinicalTrials.gov</a></dd>
+            </dl>
+          </section>
+        </aside>
+      </section>
+    </div>
+
+    <dialog id="protocol-dialog" class="protocol-dialog">
+      <form id="protocol-form" class="editor-panel">
+        <div class="dialog-heading"><div><p class="eyebrow">New document workspace</p><h2>Upload trial document</h2></div><button id="close-protocol" class="icon-button" type="button" aria-label="Close protocol editor">&times;</button></div>
+        <label class="file-control">Choose trial document<input id="protocol-file" type="file"></label>
+        <div id="file-extraction-status" class="file-extraction-status" role="status">Word, PDF, RTF, ODT, PowerPoint, Excel, HTML, and text/data files up to 25 MB.</div>
+        <label>Protocol text<textarea id="protocol-text" required>Phase 2 protocol evaluating an investigational therapy in adults with a rare disease.</textarea></label>
+        <div class="fields two-up">
+          <label>Trial2Vec anchor NCT<input id="anchor-nct" value="NCT02545127" required></label>
+          <label>Indication<input id="indication" value="Rare disease"></label>
+          <label>Phase<input id="study-phase" value="PHASE2"></label>
+          <label>Population<input id="population" value="Adults"></label>
+          <label>Intervention<input id="intervention" value="Investigational therapy"></label>
+          <label>Intervention type<select id="intervention-type"><option value="DRUG">Drug</option><option value="BIOLOGICAL">Biological</option><option value="DEVICE">Device</option><option value="">Not specified</option></select></label>
+          <label>Comparator<input id="comparator" value="Standard care"></label>
+          <label>Primary endpoint<input id="primary-endpoint" value="Functional outcome"></label>
+          <label>Planned enrollment<input id="planned-enrollment" type="number" min="1" value="80"></label>
+          <label>Planned sites<input id="planned-sites" type="number" min="1" value="4"></label>
+        </div>
+        <label class="toggle comparison-only"><input id="compare-toggle" type="checkbox"> Compare with a second protocol candidate</label>
+        <section id="candidate-b" class="candidate-b hidden">
+          <p class="eyebrow">Candidate B</p>
+          <label>Protocol text<textarea id="protocol-text-b">Alternative protocol design for the same indication.</textarea></label>
+          <div class="fields two-up">
+            <label>Trial2Vec anchor NCT<input id="anchor-nct-b" value="NCT02545127"></label>
+            <label>Planned enrollment<input id="planned-enrollment-b" type="number" min="1" value="120"></label>
+          </div>
+        </section>
+        <button id="submit-comparison" class="submit-button" type="submit">Open in text editor</button>
+      </form>
+    </dialog>
+    <script src="/static/app.js?v=20260810-11"></script>
+  </body>
+</html>
