@@ -6,7 +6,7 @@ select a historical Trial2Vec anchor, compare one or two protocol candidates,
 and inspect measured cosine similarity with comparable historical trials.
 
 The browser workspace is served by FastAPI at `http://127.0.0.1:8001`.
-
+happy
 For a real two-laptop pre-production test, follow
 [TWO_LAPTOP_PILOT.md](TWO_LAPTOP_PILOT.md).
 
