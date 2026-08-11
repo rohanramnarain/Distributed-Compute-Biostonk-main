@@ -54,6 +54,13 @@ class ComparableTrialResponse(BaseModel):
     metadata: dict | None
 
 
+class TrialCatalogEntryResponse(BaseModel):
+    nct_id: str
+    title: str | None
+    indication: str | None
+    phase: str | None
+
+
 class ValidatedAnalysisRequestResponse(BaseModel):
     input_hash_sha256: str
     anchor_nct_id: str
@@ -349,6 +356,16 @@ def create_app(
                 metadata=result.metadata,
             )
             for result in results
+        ]
+
+    @app.get("/trials/catalog", response_model=list[TrialCatalogEntryResponse])
+    def trial_catalog(
+        query: str = Query(default="", max_length=200),
+        limit: int = Query(default=25, ge=1, le=100),
+    ) -> list[TrialCatalogEntryResponse]:
+        return [
+            TrialCatalogEntryResponse(**trial)
+            for trial in search.catalog_trials(query=query, limit=limit)
         ]
 
     return app

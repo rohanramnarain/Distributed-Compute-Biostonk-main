@@ -1,5 +1,5 @@
 const ACTIVE_TRIAL_ID = "NCT02545127";
-const state = { previousDraft: null, activeJob: null, jobTimer: null, comparisonResults: [], computeReady: false, activeDocument: "protocol", trialLoaded: false, documentExtracting: false, activeMatch: null };
+const state = { previousDraft: null, activeJob: null, jobTimer: null, comparisonResults: [], computeReady: false, activeDocument: "protocol", trialLoaded: false, documentExtracting: false, activeMatch: null, trialScorer: null, embeddingScorer: null, embeddingRequest: 0, anchorTrials: new Map(), anchorCatalogRequest: 0, staticAnchorCatalog: null };
 const byId = (id) => document.getElementById(id);
 const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
 const plural = (value, singular, pluralForm) => { const count = Number(value) || 0; return `${count} ${count === 1 ? singular : pluralForm}`; };
@@ -18,6 +18,64 @@ const signalCatalog = [
   { phrase: "4 participants", delta: -8, detail: "Very low enrollment contributes a negative evidence-volume signal." },
   { phrase: "not specified", delta: -3, detail: "Missing structured detail reduces the simulated completeness signal." }
 ];
+
+async function initializeTrialScorer() {
+  try {
+    state.trialScorer = await window.TrialLanguageScorer.load();
+    signalCatalog.splice(0, signalCatalog.length, ...state.trialScorer.model.phrase_weights.map((signal) => ({
+      phrase: signal.phrase,
+      delta: signal.weight,
+      detail: signal.detail
+    })));
+  } catch {
+    state.trialScorer = null;
+  }
+}
+
+async function updateEmbeddingPrediction(nctId) {
+  const requestId = ++state.embeddingRequest;
+  const normalizedNctId = String(nctId || "").trim().toUpperCase();
+  byId("embedding-nct-id").textContent = normalizedNctId || "Not set";
+  if (!state.embeddingScorer) {
+    byId("embedding-score-state").textContent = "Model unavailable";
+    byId("embedding-score-detail").textContent = "The local completion model could not be loaded.";
+    return;
+  }
+  if (!normalizedNctId) {
+    byId("embedding-score-state").textContent = "No NCT selected";
+    byId("embedding-score-detail").textContent = "Select a known NCT to run the local embedding classifier.";
+    return;
+  }
+  byId("embedding-score-state").textContent = "Loading local embedding";
+  byId("embedding-score-detail").textContent = "Fetching the NCT-specific static embedding.";
+  try {
+    const embedding = await window.TrialEmbeddingScorer.lookupEmbedding(normalizedNctId, state.embeddingScorer.model.embedding_lookup);
+    if (requestId !== state.embeddingRequest) return;
+    if (!embedding) {
+      byId("embedding-score-state").textContent = "Embedding unavailable";
+      byId("embedding-score-detail").textContent = "This NCT is not in the local labeled-embedding cohort.";
+      return;
+    }
+    const result = state.embeddingScorer.score(embedding);
+    const completionScore = Math.round(result.completionProbability * 100);
+    const terminationScore = Math.round(result.terminationProbability * 100);
+    byId("embedding-score-state").textContent = `${completionScore}% completed likelihood`;
+    byId("embedding-score-detail").textContent = `${terminationScore}% terminated likelihood. Model ${result.modelVersion}; computed in this browser from the stored NCT embedding.`;
+  } catch {
+    if (requestId !== state.embeddingRequest) return;
+    byId("embedding-score-state").textContent = "Embedding lookup unavailable";
+    byId("embedding-score-detail").textContent = "The local model remains separate from the editable protocol-language signal.";
+  }
+}
+
+async function initializeEmbeddingScorer() {
+  try {
+    state.embeddingScorer = await window.TrialEmbeddingScorer.load();
+  } catch {
+    state.embeddingScorer = null;
+  }
+  updateEmbeddingPrediction(byId("trial-workspace-nct").textContent);
+}
 
 const trialDocuments = {
   protocol: {
@@ -73,8 +131,7 @@ function initializeDocument(documentData) {
 Object.values(trialDocuments).forEach(initializeDocument);
 
 function signalsForText(text) {
-  const normalized = text.toLocaleLowerCase();
-  return signalCatalog.filter((signal) => normalized.includes(signal.phrase.toLocaleLowerCase()));
+  return [];
 }
 
 function signalDescriptor(signal) {
@@ -260,12 +317,10 @@ async function loadTrialWorkspace() {
     Object.keys(trialDocuments).forEach((documentId) => delete trialDocuments[documentId]);
     workspace.documents.forEach((documentData) => {
       const signals = signalsForText(documentData.content);
-      const signalTotal = signals.reduce((total, signal) => total + signal.delta, 0);
       trialDocuments[documentData.document_id] = {
         label: documentData.label,
         html: documentHtml(documentData.content, documentData.label, signals),
         signals,
-        baseScore: Math.max(25, Math.min(85, 60 + signalTotal)),
         modified: documentData.modified
       };
       initializeDocument(trialDocuments[documentData.document_id]);
@@ -278,6 +333,7 @@ async function loadTrialWorkspace() {
     byId("trial-source-link").href = workspace.source_url;
     byId("trial-save-status").textContent = "Source metadata loaded";
     byId("editor-save-state").textContent = "Saved";
+    updateEmbeddingPrediction(workspace.nct_id);
     renderDocumentTabs();
     renderTrialDocument(state.activeDocument);
   } catch {
@@ -286,6 +342,7 @@ async function loadTrialWorkspace() {
     byId("trial-workspace-status").textContent = "Offline prototype";
     byId("trial-save-status").textContent = "API unavailable; edits stay local";
     byId("editor-save-state").textContent = "Local only";
+    updateEmbeddingPrediction(byId("trial-workspace-nct").textContent);
     renderDocumentTabs();
     renderTrialDocument(state.activeDocument);
   }
@@ -364,27 +421,28 @@ function updatePrototypePrediction() {
   const documentData = trialDocuments[state.activeDocument];
   const editorText = byId("trial-document-editor").innerText.trim();
   const wordCount = editorText.split(/\s+/).filter(Boolean).length;
-  const candidateSignals = [...documentData.signals, ...signalCatalog].filter((signal, index, signals) => signals.findIndex((candidate) => candidate.phrase.toLocaleLowerCase() === signal.phrase.toLocaleLowerCase()) === index);
-  const detectedSignals = candidateSignals.filter((signal) => editorText.toLocaleLowerCase().includes(signal.phrase.toLocaleLowerCase())).map(signalDescriptor);
-  const presentSignals = detectedSignals.filter((signal) => !detectedSignals.some((candidate) => candidate.phrase.length > signal.phrase.length && candidate.phrase.toLocaleLowerCase().includes(signal.phrase.toLocaleLowerCase())));
-  const presentSignalTotal = presentSignals.reduce((total, signal) => total + signal.delta, 0);
-  const lengthAdjustment = Math.max(-5, Math.min(5, Math.round((wordCount - documentData.initialWordCount) / 5)));
-  const score = Math.max(20, Math.min(90, documentData.baseScore + presentSignalTotal - documentData.initialSignalTotal + lengthAdjustment));
+  const result = state.trialScorer
+    ? state.trialScorer.score(editorText, { phase: documentData.phase || "default" })
+    : { probability: 0.5, contributions: [], modelType: "local fallback", modelVersion: "unavailable" };
+  const presentSignals = result.contributions.map(signalDescriptor);
+  const score = (Number.isFinite(result.probability) ? result.probability : 0.5) * 100;
   const band = score >= 75 ? "High" : score >= 55 ? "Moderate" : "Low";
 
   byId("editor-word-count").textContent = `${wordCount} ${wordCount === 1 ? "word" : "words"}`;
-  byId("trial-success-score").textContent = `${score}%`;
+  byId("trial-success-score").textContent = `${score.toFixed(1)}%`;
   byId("trial-success-band").textContent = band;
   byId("trial-success-track").style.width = `${score}%`;
   byId("contribution-count").textContent = `${presentSignals.length} ${presentSignals.length === 1 ? "signal" : "signals"}`;
-  byId("prediction-updated-at").textContent = "Just now";
+  byId("live-score-detail").textContent = `${presentSignals.length} ${presentSignals.length === 1 ? "capstone-backed signal is" : "capstone-backed signals are"} detected. The local percentage changes only when a matched clause or distinctive capstone term changes; it is not a validated clinical outcome prediction.`;
+  byId("prediction-updated-at").textContent = `Local model ${result.modelVersion}`;
+  byId("prediction-model-name").textContent = result.modelType === "protocol_language_signal" ? "Local protocol-language signal" : result.modelType;
   resetMatchNavigator();
   setPhraseContributionsPinned(false);
   refreshEditorHighlights(presentSignals);
   documentData.html = byId("trial-document-editor").innerHTML;
   byId("phrase-contributions").innerHTML = presentSignals.length
-    ? presentSignals.sort((left, right) => Math.abs(right.delta) - Math.abs(left.delta)).map((signal) => `<article class="phrase-signal ${signal.delta < 0 ? "negative" : "positive"} severity-${signal.severity}"><div class="phrase-signal-heading"><q>${esc(signal.phrase)}</q><span class="signal-score"><small>${signal.severity}</small><strong>${signal.delta > 0 ? "+" : ""}${signal.delta}</strong></span></div><p>${esc(signal.detail)}</p><button class="jump-to-phrase" type="button" data-signal-id="${signal.signalId}" aria-label="Go to phrase: ${esc(signal.phrase)}">Go to phrase <span aria-hidden="true">&#8595;</span></button></article>`).join("")
-    : `<article class="phrase-signal negative"><div class="phrase-signal-heading"><q>No tracked phrases found</q><strong>0</strong></div><p>Edit this document to continue testing the explainability panel.</p></article>`;
+    ? presentSignals.sort((left, right) => Math.abs(right.delta) - Math.abs(left.delta)).map((signal) => `<article class="phrase-signal ${signal.delta < 0 ? "negative" : "positive"} severity-${signal.severity}"><div class="phrase-signal-heading"><q>${esc(signal.phrase)}</q><span class="signal-score"><small>${signal.severity}</small><strong>${signal.delta > 0 ? "+" : ""}${signal.delta}</strong></span></div><p>${esc(signal.detail)}</p><button class="jump-to-phrase" type="button" data-signal-id="${signal.signalId}" aria-label="Go to clause: ${esc(signal.phrase)}">Go to clause <span aria-hidden="true">&#8595;</span></button></article>`).join("")
+    : `<article class="phrase-signal negative"><div class="phrase-signal-heading"><q>No specific protocol clauses found</q><strong>0</strong></div><p>Add or revise a detailed protocol clause to inspect it here.</p></article>`;
 }
 
 function draftFromForm(suffix = "") {
@@ -397,13 +455,69 @@ function draftFromForm(suffix = "") {
   };
 }
 
+function nctIdFromText(text) {
+  return String(text || "").match(/\bNCT\d{8}\b/i)?.[0]?.toUpperCase() || "";
+}
+
+function renderAnchorCatalog(trials) {
+  const catalog = byId("anchor-trials");
+  state.anchorTrials = new Map(trials.map((trial) => [trial.nct_id, trial]));
+  catalog.replaceChildren(...trials.map((trial) => {
+    const option = document.createElement("option");
+    option.value = trial.nct_id;
+    const details = [trial.title, trial.indication].filter(Boolean);
+    option.label = details.length ? [trial.nct_id, ...details].join(" - ") : `${trial.nct_id} - Trial2Vec dataset`;
+    option.textContent = option.label;
+    return option;
+  }));
+}
+
+async function loadStaticAnchorCatalog() {
+  if (!state.staticAnchorCatalog) {
+    state.staticAnchorCatalog = fetch("/static/models/trial-anchor-catalog.json", { cache: "force-cache" })
+      .then((response) => {
+        if (!response.ok) throw new Error("The static anchor catalog could not be loaded.");
+        return response.json();
+      })
+      .then((catalog) => catalog.nct_ids.map((nctId) => ({ nct_id: nctId, title: null, indication: null, phase: null })));
+  }
+  return state.staticAnchorCatalog;
+}
+
+async function searchAnchorCatalog(query = "") {
+  const requestId = ++state.anchorCatalogRequest;
+  try {
+    const response = await fetch(`/trials/catalog?query=${encodeURIComponent(query)}&limit=25`);
+    if (!response.ok) throw new Error("Catalog API unavailable.");
+    const trials = await response.json();
+    if (requestId === state.anchorCatalogRequest) renderAnchorCatalog(trials);
+  } catch {
+    try {
+      const normalizedQuery = query.trim().toUpperCase();
+      const trials = (await loadStaticAnchorCatalog()).filter((trial) => trial.nct_id.includes(normalizedQuery)).slice(0, 25);
+      if (requestId === state.anchorCatalogRequest) renderAnchorCatalog(trials);
+    } catch {}
+  }
+}
+
+function applyAnchorSelection(input) {
+  const trial = state.anchorTrials.get(input.value.trim().toUpperCase());
+  if (!trial || input.id !== "anchor-nct") return;
+  if (trial.indication) byId("indication").value = trial.indication;
+  if (trial.phase) byId("study-phase").value = trial.phase;
+  updateDraftMetrics();
+  analyzeDraft();
+}
+
 function candidateFromForm(id, suffix = "") {
   const draft = suffix ? { ...draftFromForm(), protocol_text: byId("protocol-text-b").value.trim(), planned_enrollment: Number(byId("planned-enrollment-b").value) || null } : draftFromForm();
   return { candidate_id: id, anchor_nct_id: byId(`anchor-nct${suffix}`).value.trim(), draft };
 }
 
 function updateDraftMetrics() {
-  byId("anchor-metric").textContent = byId("anchor-nct").value.trim() || "Not set";
+  const anchorNctId = byId("anchor-nct").value.trim() || "Not set";
+  byId("anchor-metric").textContent = anchorNctId;
+  byId("trial-tab-nct").textContent = anchorNctId;
   byId("enrollment-metric").textContent = byId("planned-enrollment").value || "--";
   byId("sites-metric").textContent = byId("planned-sites").value || "--";
   byId("phase-metric").textContent = byId("study-phase").value.trim() || "Not set";
@@ -468,29 +582,30 @@ function openUploadedDocument(event) {
   if (state.documentExtracting) return;
   const content = byId("protocol-text").value.trim();
   if (!content) return;
+  const detectedNctId = nctIdFromText(content);
+  if (detectedNctId) byId("anchor-nct").value = detectedNctId;
+  updateDraftMetrics();
   const file = byId("protocol-file").files[0];
   const label = file?.name.replace(/\.[^.]+$/, "") || "Uploaded protocol";
   const signals = signalsForText(content);
-  const signalTotal = signals.reduce((total, signal) => total + signal.delta, 0);
-
   Object.keys(trialDocuments).forEach((documentId) => delete trialDocuments[documentId]);
   trialDocuments.uploaded = {
     label,
     html: documentHtml(content, label, signals),
     signals,
-    baseScore: Math.max(25, Math.min(85, 60 + signalTotal)),
     modified: true
   };
   initializeDocument(trialDocuments.uploaded);
   state.activeDocument = "uploaded";
   state.trialLoaded = true;
   byId("trial-workspace-title").textContent = label;
-  byId("trial-workspace-nct").textContent = byId("anchor-nct").value.trim() || "Local document";
+  byId("trial-workspace-nct").textContent = detectedNctId || byId("anchor-nct").value.trim() || "Local document";
   byId("trial-workspace-status").textContent = "Editor preview";
   byId("trial-source-link").removeAttribute("href");
   byId("trial-source-link").textContent = "Uploaded locally";
   byId("trial-save-status").textContent = "Local document loaded";
   byId("editor-save-state").textContent = "Local only";
+  updateEmbeddingPrediction(byId("trial-workspace-nct").textContent);
   renderDocumentTabs();
   byId("trial-tab-group").classList.remove("hidden");
   showWorkspace("trial");
@@ -605,6 +720,15 @@ async function loadComputeReadiness() {
 
 let debounce; byId("protocol-form").addEventListener("input", () => { updateDraftMetrics(); clearTimeout(debounce); debounce = setTimeout(analyzeDraft, 600); });
 byId("protocol-form").addEventListener("submit", openUploadedDocument);
+let anchorCatalogDebounce;
+document.querySelectorAll("[list='anchor-trials']").forEach((input) => {
+  input.addEventListener("focus", () => searchAnchorCatalog(input.value));
+  input.addEventListener("input", () => {
+    clearTimeout(anchorCatalogDebounce);
+    anchorCatalogDebounce = setTimeout(() => searchAnchorCatalog(input.value), 250);
+  });
+  input.addEventListener("change", () => applyAnchorSelection(input));
+});
 byId("compare-toggle").addEventListener("change", (event) => { byId("candidate-b").classList.toggle("hidden", !event.target.checked); updateDraftMetrics(); });
 byId("protocol-file").addEventListener("change", async (event) => {
   const file = event.target.files[0];
@@ -695,7 +819,7 @@ byId("trial-document-editor").addEventListener("input", () => {
   byId("trial-save-status").textContent = "Unsaved local changes";
   byId("editor-save-state").textContent = "Unsaved";
   clearTimeout(predictionDebounce);
-  predictionDebounce = setTimeout(updatePrototypePrediction, 180);
+  predictionDebounce = setTimeout(updatePrototypePrediction, 90);
   clearTimeout(saveDebounce);
   saveDebounce = setTimeout(() => saveTrialDocument(documentId, content), 700);
 });
@@ -703,6 +827,10 @@ byId("trial-document-editor").addEventListener("paste", (event) => {
   event.preventDefault();
   document.execCommand("insertText", false, event.clipboardData.getData("text/plain"));
 });
+initializeTrialScorer().then(() => {
+  if (state.trialLoaded && byId("trial-document-editor").innerText.trim()) updatePrototypePrediction();
+});
+initializeEmbeddingScorer();
 updateDraftMetrics(); analyzeDraft(); loadDevices(); loadJobs(); loadComputeReadiness();
 setInterval(loadComputeReadiness, 5000);
 setInterval(loadDevices, 3000);

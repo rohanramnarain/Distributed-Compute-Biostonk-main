@@ -56,6 +56,28 @@ class TestClinicalApi(unittest.TestCase):
         self.assertTrue(response.json()[0]["metadata_available"])
         self.assertEqual(response.json()[0]["metadata"]["study_type"], "INTERVENTIONAL")
 
+    def test_returns_searchable_trial_catalog_entries(self):
+        response = self.client.get("/trials/catalog?query=example")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [{
+            "nct_id": "NCT002",
+            "title": "Example study",
+            "indication": "Rare disease",
+            "phase": "PHASE2",
+        }])
+
+    def test_returns_trial2vec_anchor_without_metadata(self):
+        response = self.client.get("/trials/catalog?query=NCT001")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [{
+            "nct_id": "NCT001",
+            "title": None,
+            "indication": None,
+            "phase": None,
+        }])
+
     def test_serves_demo_workspace(self):
         response = self.client.get("/")
 

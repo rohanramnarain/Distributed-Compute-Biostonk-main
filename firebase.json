@@ -11,7 +11,6 @@
       "**/node_modules/**",
       "**/*.py",
       "**/*.npz",
-      "**/*.json",
       "**/*.md",
       "**/__pycache__/**"
     ],
@@ -46,6 +45,15 @@
           {
             "key": "Cache-Control",
             "value": "public,max-age=300"
+          }
+        ]
+      },
+      {
+        "source": "/static/models/**/*.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public,max-age=86400"
           }
         ]
       }

@@ -53,6 +53,35 @@ class TrialSearch:
         """Return imported structured metadata for a known Trial2Vec identifier."""
         return self._metadata_catalog.get(nct_id) if self._metadata_catalog else None
 
+    def catalog_trials(self, query: str = "", limit: int = 25) -> list[dict]:
+        """Return searchable, metadata-backed Trial2Vec anchor candidates."""
+        if limit < 1:
+            raise ValueError("limit must be at least 1")
+
+        query_text = normalize(query)
+        candidates: list[dict] = []
+        for nct_id in dict.fromkeys(self._nct_ids):
+            metadata = self.metadata_for(nct_id)
+            title = metadata.get("official_title") if metadata else None
+            indications = metadata.get("conditions", []) if metadata else []
+            indication = next((value for value in indications if value), None)
+            phases = metadata.get("phases", []) if metadata else []
+            phase = next((value for value in phases if value), None)
+            searchable = normalize(f"{nct_id} {title or ''} {indication or ''}")
+            if query_text and query_text not in searchable:
+                continue
+            candidates.append(
+                {
+                    "nct_id": nct_id,
+                    "title": title,
+                    "indication": indication,
+                    "phase": phase,
+                }
+            )
+            if len(candidates) == limit:
+                break
+        return candidates
+
     def find_comparables(
         self,
         nct_id: str,
